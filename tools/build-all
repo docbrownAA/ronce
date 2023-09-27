@@ -1,0 +1,6 @@
+#! /usr/bin/env bash
+
+for pkg in $(find ./src -name pkg | grep -v -E './src/(go|ts)' | cut -d '/' -f 3)
+do
+	make build pkg=$pkg;
+done

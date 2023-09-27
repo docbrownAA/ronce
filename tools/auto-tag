@@ -1,0 +1,54 @@
+#! /usr/bin/env bash
+
+# auto-tag multiple packages by looking up their tags and bumping the highest
+# version according to semver rules and the given release type.
+
+releaseType=$1
+shift
+
+for pkg in $@
+do
+	# Get the first tag according to tags already present in main, sorting in
+	# descending order using the tag as a version, effectively taking the
+	# highest version. Could probably also used the latest published tag.
+	# We ignore tags with a dash in it because they are used to represent
+	# pre-release tags.
+	last_tag=$(git tag -l "$pkg-v*" --sort -version:refname --merged main | grep -v "$pkg-.*-.*" | head -n 1)
+
+	# Extract the version using string interpolation.
+	last_version=${last_tag##*-v}
+
+	if [ -z "$last_version" ]
+	then
+		last_version="0.0.0"
+	fi
+
+	# Split the version around dots and put the results in the semver
+	# array.
+	IFS='.' read -ra semver <<< "$last_version"
+
+	# Compute the new version basded on the release type.
+	case $releaseType in
+		"major")
+			semver[0]=$((${semver[0]} + 1))
+			semver[1]=0
+			semver[2]=0
+			;;
+
+		"minor")
+			semver[1]=$((${semver[1]} + 1))
+			semver[2]=0
+			;;
+
+		"patch")
+			semver[2]=$((${semver[2]} + 1))
+			;;
+		*) echo "invalid operation $type"; exit 1;;
+	esac
+
+	# Build the new tag, display it for the record, and create the matching
+	# tag.
+	new_tag="$pkg-v${semver[0]}.${semver[1]}.${semver[2]}"
+	echo "$new_tag"
+	git tag $new_tag
+done
